@@ -1,0 +1,46 @@
+# OpenFaaS deployment descriptor for the five demo functions.
+# Prerequisites and steps: docs/DEPLOYMENT.md
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8080
+
+configuration:
+  templates:
+    - name: python3-http
+
+functions:
+  auth-check:
+    lang: python3-http
+    handler: ./auth-check
+    image: YOUR_REGISTRY/ssmf-auth-check:latest
+    environment: &env
+      SSMF_MONITOR_URL: http://ssmf-monitor.ssmf.svc.cluster.local:8000
+      SSMF_DEMO_IO: "1"   # simulates 8-50 ms of downstream I/O; remove for real functions
+    secrets: &secrets
+      - ssmf-api-key
+      - ssmf-caller-secret
+  payment-process:
+    lang: python3-http
+    handler: ./payment-process
+    image: YOUR_REGISTRY/ssmf-payment-process:latest
+    environment: *env
+    secrets: *secrets
+  image-resize:
+    lang: python3-http
+    handler: ./image-resize
+    image: YOUR_REGISTRY/ssmf-image-resize:latest
+    environment: *env
+    secrets: *secrets
+  notify-user:
+    lang: python3-http
+    handler: ./notify-user
+    image: YOUR_REGISTRY/ssmf-notify-user:latest
+    environment: *env
+    secrets: *secrets
+  data-export:
+    lang: python3-http
+    handler: ./data-export
+    image: YOUR_REGISTRY/ssmf-data-export:latest
+    environment: *env
+    secrets: *secrets

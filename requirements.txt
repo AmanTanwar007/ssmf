@@ -1,0 +1,7 @@
+# Runtime dependencies (versions this project was developed and tested with, Python 3.12)
+fastapi==0.142.4
+uvicorn==0.54.0
+pydantic==2.13.5
+PyYAML==6.0.3
+scikit-learn==1.8.0
+numpy==2.4.4

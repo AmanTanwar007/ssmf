@@ -1,0 +1,52 @@
+# SSMF security policy.
+#
+# `functions` is the declared call graph + per-function limits: who may call
+# whom ("external" = a client/gateway call, not another function).
+# Any call edge that is not listed here raises UNAUTHORIZED_CALL.
+#
+# Edit this file to match your own deployment (it is mounted as a ConfigMap
+# in deploy/k8s/ssmf-monitor.yaml).
+
+functions:
+  auth-check:
+    allowed_callers: [external]
+    max_payload_bytes: 10000
+  payment-process:
+    allowed_callers: [external, auth-check]
+    max_payload_bytes: 50000
+  image-resize:
+    allowed_callers: [external, notify-user]
+    max_payload_bytes: 5000000
+  notify-user:
+    allowed_callers: [external, payment-process, image-resize]
+    max_payload_bytes: 50000
+  data-export:
+    allowed_callers: [external, auth-check]
+    max_payload_bytes: 1000000
+
+detection:
+  mode: hybrid                 # rules | ml | hybrid
+  window_seconds: 10           # sliding window for all rate rules
+  max_invocations_per_function_window: 120
+  max_invocations_per_source_window: 40
+  max_auth_failures_per_source_window: 5
+  max_server_errors_per_function_window: 10
+  zscore_threshold: 4.0        # on log-scale payload / duration
+  min_samples: 30              # per-function samples before z-score rules activate
+  min_log_std: 0.1             # floor on log-std so very stable functions don't over-fire
+  baseline_window: 2000        # effective memory of the running baseline
+  ml:
+    enabled: true
+    algorithm: lof             # lof | iforest | mahalanobis  (see docs/EVALUATION.md for the comparison)
+    warmup_events: 800         # clean events collected before the model is trained
+    n_neighbors: 50            # LOF neighbourhood size
+    n_estimators: 100          # Isolation Forest trees (iforest only)
+    false_positive_target: 0.01    # share of held-out clean data allowed below the threshold
+    calibration_fraction: 0.3  # part of the warm-up held out to calibrate that threshold
+    persistence: 2             # model must flag the same source this many times in the window
+                               # (attacks are bursts, false positives are isolated)
+
+alerting:
+  cooldown_seconds: 30         # identical (function, rule, source) alerts are folded
+  jsonl_path: ""               # e.g. alerts.jsonl to also append alerts to a file
+  webhook_url: ""              # Slack-compatible incoming webhook; empty = disabled

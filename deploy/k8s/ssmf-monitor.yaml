@@ -1,0 +1,164 @@
+# Kubernetes manifests for the SSMF monitor.
+#
+# NOT executed in the authoring environment (no cluster was available) - validate with
+#   kubectl apply --dry-run=server -f deploy/k8s/ssmf-monitor.yaml
+# before relying on it, and see docs/DEPLOYMENT.md.
+#
+# Build and push the image first:  docker build -t YOUR_REGISTRY/ssmf-monitor:latest . && docker push ...
+# The monitor keeps detection state in memory, so it runs as a single replica (see docs/ARCHITECTURE.md).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ssmf
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssmf-api-key
+  namespace: ssmf
+type: Opaque
+stringData:
+  key: REPLACE-WITH-A-LONG-RANDOM-STRING     # also create it for functions: see docs/DEPLOYMENT.md
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ssmf-policy
+  namespace: ssmf
+data:
+  policy.yaml: |
+    # SSMF security policy.
+    #
+    # `functions` is the declared call graph + per-function limits: who may call
+    # whom ("external" = a client/gateway call, not another function).
+    # Any call edge that is not listed here raises UNAUTHORIZED_CALL.
+    #
+    # Edit this file to match your own deployment (it is mounted as a ConfigMap
+    # in deploy/k8s/ssmf-monitor.yaml).
+
+    functions:
+      auth-check:
+        allowed_callers: [external]
+        max_payload_bytes: 10000
+      payment-process:
+        allowed_callers: [external, auth-check]
+        max_payload_bytes: 50000
+      image-resize:
+        allowed_callers: [external, notify-user]
+        max_payload_bytes: 5000000
+      notify-user:
+        allowed_callers: [external, payment-process, image-resize]
+        max_payload_bytes: 50000
+      data-export:
+        allowed_callers: [external, auth-check]
+        max_payload_bytes: 1000000
+
+    detection:
+      mode: hybrid                 # rules | ml | hybrid
+      window_seconds: 10           # sliding window for all rate rules
+      max_invocations_per_function_window: 120
+      max_invocations_per_source_window: 40
+      max_auth_failures_per_source_window: 5
+      max_server_errors_per_function_window: 10
+      zscore_threshold: 4.0        # on log-scale payload / duration
+      min_samples: 30              # per-function samples before z-score rules activate
+      min_log_std: 0.1             # floor on log-std so very stable functions don't over-fire
+      baseline_window: 2000        # effective memory of the running baseline
+      ml:
+        enabled: true
+        algorithm: lof             # lof | iforest | mahalanobis  (see docs/EVALUATION.md for the comparison)
+        warmup_events: 800         # clean events collected before the model is trained
+        n_neighbors: 50            # LOF neighbourhood size
+        n_estimators: 100          # Isolation Forest trees (iforest only)
+        false_positive_target: 0.01    # share of held-out clean data allowed below the threshold
+        calibration_fraction: 0.3  # part of the warm-up held out to calibrate that threshold
+        persistence: 2             # model must flag the same source this many times in the window
+                                   # (attacks are bursts, false positives are isolated)
+
+    alerting:
+      cooldown_seconds: 30         # identical (function, rule, source) alerts are folded
+      jsonl_path: ""               # e.g. alerts.jsonl to also append alerts to a file
+      webhook_url: ""              # Slack-compatible incoming webhook; empty = disabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ssmf-monitor
+  namespace: ssmf
+  labels: {app: ssmf-monitor}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ssmf-monitor}
+  template:
+    metadata:
+      labels: {app: ssmf-monitor}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: monitor
+          image: YOUR_REGISTRY/ssmf-monitor:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SSMF_POLICY
+              value: /etc/ssmf/policy.yaml
+            - name: SSMF_DB
+              value: /data/ssmf.db
+            - name: SSMF_API_KEY
+              valueFrom:
+                secretKeyRef: {name: ssmf-api-key, key: key}
+          volumeMounts:
+            - {name: policy, mountPath: /etc/ssmf, readOnly: true}
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+      volumes:
+        - name: policy
+          configMap: {name: ssmf-policy}
+        - name: data
+          emptyDir: {}                       # use a PersistentVolumeClaim to keep history across restarts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ssmf-monitor
+  namespace: ssmf
+spec:
+  selector: {app: ssmf-monitor}
+  ports:
+    - {port: 8000, targetPort: 8000}
+---
+# Only the OpenFaaS function namespace (and this namespace) may reach the monitor.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ssmf-monitor-ingress
+  namespace: ssmf
+spec:
+  podSelector:
+    matchLabels: {app: ssmf-monitor}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: openfaas-fn}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ssmf}
+      ports:
+        - {port: 8000}

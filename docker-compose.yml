@@ -1,0 +1,19 @@
+# Run the monitor:   SSMF_API_KEY=choose-a-long-random-string docker compose up --build
+# Dashboard:         http://localhost:8000/
+services:
+  ssmf-monitor:
+    build: .
+    image: ssmf-monitor:latest
+    ports:
+      - "8000:8000"
+    environment:
+      SSMF_API_KEY: ${SSMF_API_KEY:-}          # empty = ingest is open (fine for a laptop demo only)
+      SSMF_MODE: ${SSMF_MODE:-hybrid}          # rules | ml | hybrid
+    volumes:
+      - ssmf-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+volumes:
+  ssmf-data:

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.db
+*.db-wal
+*.db-shm
+alerts.jsonl
+.env
+functions/*/ssmf_sdk.py

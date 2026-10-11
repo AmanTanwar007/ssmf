@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSMF - Serverless Security Monitor</title>
+<style>
+:root{--bg:#0B1016;--bar:#10171F;--panel:#141C26;--panel2:#1A2431;--line:#263242;--text:#E6EDF5;--muted:#8B9AAD;--faint:#5C6B7E;--accent:#4C8DF6;--ok:#2FB879;--low:#6C8EBF;--medium:#E3B341;--high:#F0883E;--critical:#F5524A;--shadow:0 8px 30px rgba(0,0,0,.45);
+--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+[data-theme=light]{--bg:#F3F6FA;--bar:#FFFFFF;--panel:#FFFFFF;--panel2:#EEF2F7;--line:#D9E0E9;--text:#142030;--muted:#5A6A7E;--faint:#8A97A8;--shadow:0 8px 30px rgba(20,32,48,.15)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:var(--text)}button{cursor:pointer}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 22px;background:var(--bar);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}.brand b{font-size:1.05rem;letter-spacing:.02em;display:block;line-height:1.1}.brand small{color:var(--muted);font-size:.72rem}
+nav{display:flex;gap:4px;flex:1}nav button{background:none;border:0;padding:8px 14px;border-radius:8px;color:var(--muted);font-weight:500}
+nav button:hover{background:var(--panel2);color:var(--text)}nav button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 -2px var(--accent)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{font:500 .72rem var(--mono);padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);white-space:nowrap}.pill b{color:var(--text);font-weight:600}
+.pill.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2s infinite}
+.pill.bad::before{background:var(--critical);animation:none}.pill.idle::before{background:var(--medium);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 7px transparent}}
+.btn,select,input[type=search]{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 11px}
+.btn:hover,select:hover,button:focus-visible,input:focus{border-color:var(--accent);outline:none}
+main{max-width:1320px;margin:0 auto;padding:20px 22px 60px}[hidden]{display:none!important}
+.grid{display:grid;gap:14px;margin-bottom:14px}.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.two{grid-template-columns:1.8fr 1fr}.two-b{grid-template-columns:1fr 1.3fr}
+@media(max-width:960px){.two,.two-b{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
+.panel h2{margin:0 0 12px;font-size:.88rem;font-weight:600;display:flex;justify-content:space-between;align-items:center}.panel h2 small{color:var(--faint);font-weight:400}
+.kpi{position:relative;overflow:hidden}.kpi .v{font:600 1.9rem/1.1 var(--mono)}.kpi .l{color:var(--muted);font-size:.78rem;margin-top:4px}.kpi svg{position:absolute;right:10px;bottom:8px;opacity:.9}
+.chart{position:relative}.chart svg{width:100%;height:auto;display:block}.tip{position:absolute;pointer-events:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:.74rem var(--mono);box-shadow:var(--shadow);display:none;white-space:nowrap;z-index:2}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.76rem;color:var(--muted);margin-top:8px}.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.donutwrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.donutwrap svg{width:150px;height:150px}
+.row{margin-bottom:11px;font-size:.8rem;cursor:pointer}.row div{display:flex;justify-content:space-between}.row:hover .nm{color:var(--accent)}.bar{height:6px;background:var(--panel2);border-radius:3px;margin-top:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--high)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}th{text-align:left;color:var(--muted);font-weight:500;font-size:.72rem;padding:0 10px 9px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+th.s{cursor:pointer}th.s:hover{color:var(--text)}td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr{cursor:pointer}tbody tr:hover{background:var(--panel2)}
+.mono{font-family:var(--mono);font-size:.76rem}.muted{color:var(--muted)}.faint{color:var(--faint)}.scroll{overflow:auto;max-height:620px}
+.sev{display:inline-block;font:600 .66rem var(--mono);padding:2px 8px;border-radius:5px;text-transform:uppercase;border:1px solid currentColor}
+.sev.low{color:var(--low)}.sev.medium{color:var(--medium)}.sev.high{color:var(--high)}.sev.critical{color:var(--critical);background:rgba(245,82,74,.12)}
+.tag{display:inline-block;font:.66rem var(--mono);padding:1px 6px;margin:1px 3px 1px 0;border-radius:4px;background:var(--panel2);color:var(--muted)}.tag.f{color:var(--critical);background:rgba(245,82,74,.12)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 12px;font-size:.78rem;color:var(--muted)}
+.chip.on{color:var(--text);border-color:currentColor}.chip.low.on{color:var(--low)}.chip.medium.on{color:var(--medium)}.chip.high.on{color:var(--high)}.chip.critical.on{color:var(--critical)}
+.empty{text-align:center;color:var(--faint);padding:28px 8px;line-height:1.7}
+.fnh{font-size:.8rem}.rbar{display:inline-block;width:46px;height:5px;background:var(--panel2);border-radius:3px;vertical-align:middle;margin-right:6px;overflow:hidden}.rbar i{display:block;height:100%}
+#drawer{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;justify-content:flex-end}
+#dpanel{width:min(460px,100%);height:100%;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:22px;box-shadow:var(--shadow)}
+#dpanel h3{margin:0 0 4px;font-size:1.05rem}.kv{display:grid;grid-template-columns:120px 1fr;gap:8px 12px;margin:16px 0;font-size:.82rem}.kv dt{color:var(--muted)}.kv dd{margin:0;word-break:break-word}
+.meter{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:6px 0 14px}.meter i{display:block;height:100%}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--high);border-radius:8px;padding:10px 14px;box-shadow:var(--shadow);font-size:.8rem;max-width:340px;cursor:pointer}.toast.critical{border-left-color:var(--critical)}
+.node{cursor:default}.node text{font:11px var(--mono);fill:var(--text);text-anchor:middle}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4C8DF6" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.5 4 5.5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10v-6z"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke-linecap="round"/></svg>
+    <div><b>SSMF</b><small>Serverless Security Monitor</small></div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="overview" class="on">Overview</button><button data-tab="alerts">Alerts <span class="pill" id="alertBadge">0</span></button>
+    <button data-tab="feed">Live feed</button><button data-tab="graph">Call graph</button>
+  </nav>
+  <div class="tools">
+    <span class="pill live" id="status"><b id="statusTxt">connecting</b></span>
+    <span class="pill">mode <b id="mode">-</b></span><span class="pill">ML <b id="ml">-</b></span>
+    <select id="rate" title="Refresh rate"><option value="1000">1 s</option><option value="2000" selected>2 s</option><option value="5000">5 s</option></select>
+    <button class="btn" id="pause">Pause</button><button class="btn" id="theme" title="Toggle theme">Theme</button>
+  </div>
+</header>
+
+<main>
+<section id="t-overview">
+  <div class="grid kpis" id="kpis"></div>
+  <div class="grid two">
+    <div class="panel"><h2>Traffic <small id="tlSub"></small></h2><div class="chart" id="timeline"></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>clean invocations</span><span><i style="background:var(--critical)"></i>flagged</span></div></div>
+    <div class="panel"><h2>Alerts by severity</h2><div class="donutwrap" id="donut"></div></div>
+  </div>
+  <div class="grid two-b">
+    <div class="panel"><h2>Top rules <small>click to filter alerts</small></h2><div id="rules"></div></div>
+    <div class="panel"><h2>Functions <small>click to filter alerts</small></h2><div class="scroll" style="max-height:300px"><table><thead><tr><th>Function</th><th>Calls</th><th>Flagged</th><th>Avg ms</th></tr></thead><tbody id="fns"></tbody></table></div></div>
+  </div>
+</section>
+
+<section id="t-alerts" hidden><div class="panel">
+  <div class="filters" id="filters">
+    <button class="chip critical on" data-sev="critical">critical</button><button class="chip high on" data-sev="high">high</button>
+    <button class="chip medium on" data-sev="medium">medium</button><button class="chip low on" data-sev="low">low</button>
+    <select id="fRule"><option value="">All rules</option></select><select id="fFn"><option value="">All functions</option></select>
+    <input type="search" id="fQ" placeholder="Search source, message, caller..." style="flex:1;min-width:180px">
+    <button class="btn" id="csv">Export CSV</button>
+  </div>
+  <div class="scroll"><table><thead><tr id="ahead"></tr></thead><tbody id="alerts"></tbody></table></div>
+</div></section>
+
+<section id="t-feed" hidden><div class="panel">
+  <h2>Live invocations <small><label><input type="checkbox" id="flagOnly"> flagged only</label></small></h2>
+  <div class="scroll"><table><thead><tr><th>Time</th><th>Function</th><th>Caller</th><th>Source</th><th>Status</th><th>ms</th><th>Bytes</th><th>Findings</th><th>Risk</th></tr></thead><tbody id="feedBody"></tbody></table></div>
+</div></section>
+
+<section id="t-graph" hidden><div class="panel">
+  <h2>Call graph <small>grey = allowed by policy, red = observed violation (from alerts)</small></h2>
+  <svg id="graph" viewBox="0 0 760 460" style="width:100%;height:auto"></svg>
+</div></section>
+</main>
+
+<aside id="drawer" hidden><div id="dpanel"></div></aside>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const SEV = ["critical", "high", "medium", "low"], RANK = {critical: 4, high: 3, medium: 2, low: 1};
+const COL = {critical: "var(--critical)", high: "var(--high)", medium: "var(--medium)", low: "var(--low)"};
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text !== undefined) e.textContent = text; return e; }
+function sv(tag, attrs, text){ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(text !== undefined) e.textContent = text; return e; }
+function td(tr, v, cls){ const c = el("td", cls); if(v instanceof Node) c.appendChild(v); else c.textContent = v; tr.appendChild(c); return c; }
+const t2 = ts => new Date(ts * 1000).toLocaleTimeString([], {hour12: false});
+const ago = ts => { const s = Date.now() / 1000 - ts; return s >= 0 && s < 86400 ? (s < 60 ? Math.round(s) + "s ago" : Math.round(s / 60) + "m ago") : ""; };
+const num = n => Number(n).toLocaleString();
+const sevBadge = s => el("span", "sev " + s, s);
+
+const S = {stats: null, alerts: [], events: [], policy: null, tab: "overview", sev: new Set(SEV), rule: "", fn: "", q: "",
+           sort: {k: "ts", d: -1}, paused: false, seen: null, flagOnly: false, timer: null};
+
+/* ---------- small charts ---------- */
+function spark(vals, color){
+  const w = 90, h = 28, max = Math.max(1, ...vals), s = sv("svg", {width: w, height: h, viewBox: `0 0 ${w} ${h}`});
+  if(vals.length < 2) return s;
+  const pts = vals.map((v, i) => `${(i * w / (vals.length - 1)).toFixed(1)},${(h - 2 - (h - 4) * v / max).toFixed(1)}`).join(" ");
+  s.appendChild(sv("polyline", {points: pts, fill: "none", stroke: color, "stroke-width": 1.8, "stroke-linejoin": "round"})); return s;
+}
+function kpi(box, value, label, color, series, tone){
+  const d = el("div", "panel kpi"); const v = el("div", "v", value); if(tone) v.style.color = tone;
+  d.appendChild(v); d.appendChild(el("div", "l", label)); if(series) d.appendChild(spark(series, color)); box.appendChild(d);
+}
+function renderKpis(s){
+  const box = $("kpis"); box.replaceChildren();
+  const ts = s.timeseries, hi = (s.by_severity.high || 0) + (s.by_severity.critical || 0), rate = ts.length ? ts[ts.length - 1].events / s.bucket_seconds : 0;
+  kpi(box, num(s.total_events), "Invocations processed", "var(--accent)", ts.map(x => x.events));
+  kpi(box, num(s.flagged_events), "Flagged invocations", "var(--critical)", ts.map(x => x.flagged), s.flagged_events ? "var(--critical)" : null);
+  kpi(box, num(s.total_alerts), "Alerts" + (s.suppressed_duplicates ? " (+" + num(s.suppressed_duplicates) + " folded)" : ""), "var(--high)");
+  kpi(box, num(hi), "High / critical alerts", "var(--high)", null, hi ? "var(--high)" : "var(--ok)");
+  kpi(box, rate.toFixed(1) + "/s", "Current throughput", "var(--accent)");
+  kpi(box, s.avg_detection_latency_ms.toFixed(2) + " ms", "Detection latency / event", "var(--ok)");
+}
+function renderTimeline(s){
+  const box = $("timeline"); box.replaceChildren(); const ts = s.timeseries; $("tlSub").textContent = "events per " + s.bucket_seconds + " s";
+  if(!ts.length){ box.appendChild(el("div", "empty", "Waiting for traffic...")); return; }
+  const W = 640, H = 220, L = 34, B = 22, T = 8, n = ts.length, max = Math.max(1, ...ts.map(x => x.events)), bw = (W - L - 4) / n;
+  const svg = sv("svg", {viewBox: `0 0 ${W} ${H}`}), tip = el("div", "tip"); box.appendChild(svg); box.appendChild(tip);
+  for(let i = 0; i <= 4; i++){ const y = T + (H - B - T) * (1 - i / 4);
+    svg.appendChild(sv("line", {x1: L, x2: W - 4, y1: y, y2: y, stroke: "var(--line)"})); svg.appendChild(sv("text", {x: 2, y: y + 3, fill: "var(--faint)", "font-size": 10}, String(Math.round(max * i / 4)))); }
+  ts.forEach((p, i) => {
+    const x = L + i * bw, hc = (H - B - T) * (p.events - p.flagged) / max, hf = (H - B - T) * p.flagged / max, base = H - B;
+    svg.appendChild(sv("rect", {x: x + 1, y: base - hc, width: Math.max(1, bw - 2), height: hc, fill: "var(--accent)", rx: 1}));
+    if(hf) svg.appendChild(sv("rect", {x: x + 1, y: base - hc - hf, width: Math.max(1, bw - 2), height: hf, fill: "var(--critical)", rx: 1}));
+    const hit = sv("rect", {x: x, y: T, width: bw, height: H - B - T, fill: "transparent"});
+    hit.addEventListener("mousemove", ev => { const r = box.getBoundingClientRect(); tip.style.display = "block";
+      tip.style.left = Math.min(ev.clientX - r.left + 12, r.width - 150) + "px"; tip.style.top = (ev.clientY - r.top - 44) + "px";
+      tip.textContent = t2(p.t) + "  " + p.events + " events, " + p.flagged + " flagged"; });
+    hit.addEventListener("mouseleave", () => { tip.style.display = "none"; }); svg.appendChild(hit);
+  });
+  svg.appendChild(sv("text", {x: L, y: H - 6, fill: "var(--faint)", "font-size": 10}, t2(ts[0].t)));
+  svg.appendChild(sv("text", {x: W - 4, y: H - 6, fill: "var(--faint)", "font-size": 10, "text-anchor": "end"}, t2(ts[n - 1].t)));
+}
+function renderDonut(s){
+  const box = $("donut"); box.replaceChildren(); const tot = SEV.reduce((a, k) => a + (s.by_severity[k] || 0), 0);
+  const R = 52, C = 2 * Math.PI * R, svg = sv("svg", {viewBox: "0 0 150 150"}); let off = 0;
+  svg.appendChild(sv("circle", {cx: 75, cy: 75, r: R, fill: "none", stroke: "var(--panel2)", "stroke-width": 16}));
+  if(tot) SEV.forEach(k => { const c = s.by_severity[k] || 0; if(!c) return; const len = C * c / tot;
+    const seg = sv("circle", {cx: 75, cy: 75, r: R, fill: "none", stroke: COL[k], "stroke-width": 16, "stroke-dasharray": `${len} ${C - len}`, "stroke-dashoffset": -off, transform: "rotate(-90 75 75)"});
+    seg.style.cursor = "pointer"; seg.addEventListener("click", () => { S.sev = new Set([k]); syncChips(); go("alerts"); }); svg.appendChild(seg); off += len; });
+  svg.appendChild(sv("text", {x: 75, y: 76, "text-anchor": "middle", fill: "var(--text)", "font-size": 24, "font-weight": 600}, String(tot)));
+  svg.appendChild(sv("text", {x: 75, y: 94, "text-anchor": "middle", fill: "var(--muted)", "font-size": 10}, "alerts"));
+  box.appendChild(svg); const lg = el("div");
+  SEV.forEach(k => { const r = el("div", "fnh"); const i = el("i"); i.style.cssText = "display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:" + COL[k];
+    r.appendChild(i); r.appendChild(document.createTextNode(k + "  ")); r.appendChild(el("b", "mono", String(s.by_severity[k] || 0))); lg.appendChild(r); });
+  box.appendChild(lg);
+}
+function renderRules(s){
+  const box = $("rules"); box.replaceChildren(); if(!s.by_rule.length){ box.appendChild(el("div", "empty", "No rules triggered yet.")); return; }
+  const max = s.by_rule[0].count;
+  s.by_rule.forEach(r => { const row = el("div", "row"), top = el("div"), bar = el("div", "bar"), f = el("i");
+    top.appendChild(el("span", "mono nm", r.rule)); top.appendChild(el("span", "mono muted", String(r.count))); f.style.width = (100 * r.count / max) + "%";
+    bar.appendChild(f); row.appendChild(top); row.appendChild(bar); row.addEventListener("click", () => { S.rule = r.rule; S.fn = ""; go("alerts"); }); box.appendChild(row); });
+}
+function renderFns(s){
+  const b = $("fns"); b.replaceChildren();
+  s.by_function.forEach(f => { const tr = el("tr"), pct = f.total ? 100 * f.flagged / f.total : 0, w = el("span");
+    const bar = el("span", "rbar"), i = el("i"); i.style.width = Math.min(100, pct * 4) + "%"; i.style.background = pct > 10 ? "var(--critical)" : pct > 2 ? "var(--medium)" : "var(--ok)"; bar.appendChild(i);
+    w.appendChild(bar); w.appendChild(document.createTextNode(num(f.flagged) + " (" + pct.toFixed(1) + "%)"));
+    td(tr, f.function_name, "mono"); td(tr, num(f.total), "mono"); td(tr, w, "mono"); td(tr, f.avg_ms === null ? "-" : String(f.avg_ms), "mono");
+    tr.addEventListener("click", () => { S.fn = f.function_name; S.rule = ""; go("alerts"); }); b.appendChild(tr); });
+}
+
+/* ---------- alerts table ---------- */
+const COLS = [["ts", "Time"], ["severity", "Severity"], ["rule", "Rule"], ["function_name", "Function"], ["source_ip", "Source"], ["message", "Detail"], ["risk_score", "Risk"]];
+function filteredAlerts(){
+  const q = S.q.toLowerCase();
+  const rows = S.alerts.filter(a => S.sev.has(a.severity) && (!S.rule || a.rule === S.rule) && (!S.fn || a.function_name === S.fn) &&
+    (!q || [a.message, a.source_ip, a.caller, a.rule, a.function_name].some(x => String(x).toLowerCase().includes(q))));
+  const k = S.sort.k, d = S.sort.d;
+  return rows.sort((a, b) => { const x = k === "severity" ? RANK[a.severity] : a[k], y = k === "severity" ? RANK[b.severity] : b[k]; return (x > y ? 1 : x < y ? -1 : 0) * d; });
+}
+function riskBar(score, big){ const m = el("div", big ? "meter" : "rbar"), i = el("i"); i.style.width = score + "%"; i.style.background = score >= 70 ? "var(--critical)" : score >= 40 ? "var(--high)" : "var(--medium)"; m.appendChild(i); return m; }
+function renderAlerts(){
+  const h = $("ahead"); h.replaceChildren();
+  COLS.forEach(([k, label]) => { const th = el("th", "s", label + (S.sort.k === k ? (S.sort.d > 0 ? " ▲" : " ▼") : "")); th.addEventListener("click", () => { S.sort = {k, d: S.sort.k === k ? -S.sort.d : -1}; renderAlerts(); }); h.appendChild(th); });
+  const rows = filteredAlerts(), b = $("alerts"); b.replaceChildren();
+  $("alertBadge").textContent = String(S.alerts.length);
+  if(!rows.length){ const tr = el("tr"), c = el("td", "empty", S.alerts.length ? "No alerts match these filters." : "No alerts yet. Send traffic to the monitor or run tools/local_demo.py."); c.colSpan = 7; tr.appendChild(c); b.appendChild(tr); return; }
+  rows.forEach(a => { const tr = el("tr"), when = el("div"); when.appendChild(el("div", "mono", t2(a.ts))); when.appendChild(el("div", "faint", ago(a.ts)));
+    td(tr, when); td(tr, sevBadge(a.severity)); td(tr, a.rule, "mono"); td(tr, a.function_name, "mono"); td(tr, a.source_ip, "mono muted");
+    td(tr, a.message + (a.suppressed ? "  (+" + a.suppressed + " similar)" : "")); const rk = el("span", "mono"); rk.appendChild(riskBar(a.risk_score)); rk.appendChild(document.createTextNode(String(a.risk_score))); td(tr, rk);
+    tr.addEventListener("click", () => openAlert(a)); b.appendChild(tr); });
+}
+function fillSelect(sel, vals, cur, allLabel){ const keep = [...vals].sort(); sel.replaceChildren(); const o = el("option", "", allLabel); o.value = ""; sel.appendChild(o);
+  keep.forEach(v => { const x = el("option", "", v); x.value = v; sel.appendChild(x); }); sel.value = keep.includes(cur) ? cur : ""; }
+function syncChips(){ document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", S.sev.has(c.dataset.sev))); }
+
+/* ---------- feed ---------- */
+function renderFeed(){
+  const b = $("feedBody"); b.replaceChildren(); const rows = S.events.filter(e => !S.flagOnly || e.flagged).slice(0, 120);
+  if(!rows.length){ const tr = el("tr"), c = el("td", "empty", "No invocations yet."); c.colSpan = 9; tr.appendChild(c); b.appendChild(tr); return; }
+  rows.forEach(e => { const tr = el("tr"), tags = el("span"); e.rules.forEach(r => tags.appendChild(el("span", "tag f", r)));
+    td(tr, t2(e.ts), "mono"); td(tr, e.function_name, "mono"); td(tr, e.caller, "mono muted"); td(tr, e.source_ip, "mono muted");
+    td(tr, String(e.status_code), "mono"); td(tr, String(e.duration_ms), "mono"); td(tr, num(e.payload_size_bytes), "mono"); td(tr, e.rules.length ? tags : "-", "faint"); td(tr, String(e.risk_score), "mono");
+    if(e.flagged) tr.style.background = "rgba(245,82,74,.07)"; tr.addEventListener("click", () => openEvent(e)); b.appendChild(tr); });
+}
+
+/* ---------- call graph ---------- */
+function renderGraph(){
+  const g = $("graph"); g.replaceChildren(); if(!S.policy){ return; }
+  const fns = Object.keys(S.policy.functions), viol = {}, extra = new Set();
+  S.alerts.filter(a => a.rule === "UNAUTHORIZED_CALL").forEach(a => { const k = a.caller + ">" + a.function_name; viol[k] = (viol[k] || 0) + 1 + (a.suppressed || 0); if(a.caller !== "external" && !fns.includes(a.caller)) extra.add(a.caller); });
+  const pos = {}, cx = 400, cy = 235, R = 165; fns.forEach((f, i) => { const ang = -Math.PI / 2 + i * 2 * Math.PI / fns.length; pos[f] = [cx + R * Math.cos(ang), cy + R * Math.sin(ang)]; });
+  pos.external = [70, 235]; [...extra].forEach((x, i) => { pos[x] = [700, 90 + i * 90]; });
+  const defs = sv("defs", {}); [["a", "var(--faint)"], ["v", "var(--critical)"]].forEach(([id, c]) => { const m = sv("marker", {id: "m" + id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto"}); m.appendChild(sv("path", {d: "M0 0L10 5L0 10z", fill: c})); defs.appendChild(m); }); g.appendChild(defs);
+  function edge(from, to, cls, label){ const [x1, y1] = pos[from], [x2, y2] = pos[to], dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, bad = cls === "v";
+    const nx = -uy * (bad ? 9 : 0), ny = ux * (bad ? 9 : 0);
+    g.appendChild(sv("line", {x1: x1 + ux * 34 + nx, y1: y1 + uy * 34 + ny, x2: x2 - ux * 38 + nx, y2: y2 - uy * 38 + ny, stroke: bad ? "var(--critical)" : "var(--line)", "stroke-width": bad ? 2.4 : 1.4, "marker-end": `url(#m${cls})`}));
+    if(label) g.appendChild(sv("text", {x: (x1 + x2) / 2 + nx * 2, y: (y1 + y2) / 2 + ny * 2, fill: "var(--critical)", "font-size": 11, "text-anchor": "middle", "font-weight": 600}, label)); }
+  fns.forEach(f => S.policy.functions[f].allowed_callers.forEach(c => { if(pos[c]) edge(c, f, "a"); }));
+  Object.keys(viol).forEach(k => { const [c, f] = k.split(">"); if(pos[c] && pos[f]) edge(c, f, "v", "x" + viol[k]); });
+  const stat = {}; (S.stats ? S.stats.by_function : []).forEach(f => { stat[f.function_name] = f; });
+  Object.keys(pos).forEach(n => { const [x, y] = pos[n], f = stat[n], pct = f && f.total ? f.flagged / f.total : 0, ext = n === "external" || !fns.includes(n);
+    const grp = sv("g", {class: "node"}); grp.appendChild(sv("circle", {cx: x, cy: y, r: 32, fill: "var(--panel2)", stroke: ext ? (n === "external" ? "var(--accent)" : "var(--critical)") : (pct > .1 ? "var(--critical)" : pct > .02 ? "var(--medium)" : "var(--ok)"), "stroke-width": 2.5}));
+    grp.appendChild(sv("text", {x, y: y + 4}, n.length > 14 ? n.slice(0, 13) + "…" : n)); if(f) grp.appendChild(sv("text", {x, y: y + 50, fill: "var(--faint)", "font-size": 10}, num(f.total) + " calls")); g.appendChild(grp); });
+}
+
+/* ---------- drawer, toasts, export ---------- */
+function drawer(title, sub, pairs, risk, related){
+  const p = $("dpanel"); p.replaceChildren(); const x = el("button", "btn", "Close"); x.style.float = "right"; x.addEventListener("click", closeDrawer); p.appendChild(x);
+  p.appendChild(el("h3", "", title)); p.appendChild(el("div", "muted", sub)); if(risk !== null){ p.appendChild(el("div", "faint", "Risk score " + risk + " / 100")); p.appendChild(riskBar(risk, true)); }
+  const dl = el("dl", "kv"); pairs.forEach(([k, v]) => { dl.appendChild(el("dt", "", k)); const dd = el("dd"); if(v instanceof Node) dd.appendChild(v); else dd.textContent = String(v); dl.appendChild(dd); }); p.appendChild(dl);
+  if(related && related.length){ p.appendChild(el("h3", "", "Other activity from this source")); const t = el("table"), tb = el("tbody");
+    related.forEach(e => { const tr = el("tr"); td(tr, t2(e.ts), "mono"); td(tr, e.function_name, "mono"); td(tr, String(e.status_code), "mono"); td(tr, e.rules.join(", ") || "-", "faint"); tb.appendChild(tr); }); t.appendChild(tb); p.appendChild(t); }
+  $("drawer").hidden = false;
+}
+function closeDrawer(){ $("drawer").hidden = true; }
+function rel(ip){ return S.events.filter(e => e.source_ip === ip).slice(0, 8); }
+function openAlert(a){ const tags = el("span"); a.rules.forEach(r => tags.appendChild(el("span", "tag f", r)));
+  drawer(a.rule, a.function_name + "  -  " + new Date(a.ts * 1000).toLocaleString(), [["Severity", sevBadge(a.severity)], ["Detail", a.message], ["Rules fired", tags], ["Source IP", a.source_ip], ["Caller", a.caller],
+    ["Similar events folded", a.suppressed], ["Invocation id", a.invocation_id], ["Alert id", a.alert_id]], a.risk_score, rel(a.source_ip)); }
+function openEvent(e){ const tags = el("span"); e.rules.forEach(r => tags.appendChild(el("span", "tag f", r)));
+  drawer(e.function_name, new Date(e.ts * 1000).toLocaleString(), [["Status", e.status_code], ["Duration", e.duration_ms + " ms"], ["Payload", num(e.payload_size_bytes) + " bytes"], ["Caller", e.caller], ["Source IP", e.source_ip],
+    ["Findings", e.rules.length ? tags : "none"], ["ML score", e.ml_score === null ? "n/a (model learning or off)" : e.ml_score.toFixed(3)], ["Invocation id", e.invocation_id]], e.risk_score, rel(e.source_ip).filter(x => x.id !== e.id)); }
+function toast(a){ const t = el("div", "toast " + a.severity); t.appendChild(el("b", "", a.severity.toUpperCase() + "  " + a.rule)); t.appendChild(el("div", "muted", a.function_name + " from " + a.source_ip));
+  t.addEventListener("click", () => { t.remove(); openAlert(a); }); $("toasts").appendChild(t); setTimeout(() => t.remove(), 6000); }
+function csvCell(v){ let s = String(v === null || v === undefined ? "" : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+function exportCsv(){
+  const head = ["time", "severity", "rule", "function", "source_ip", "caller", "risk_score", "similar_folded", "message", "invocation_id"];
+  const lines = [head.join(",")].concat(filteredAlerts().map(a => [new Date(a.ts * 1000).toISOString(), a.severity, a.rule, a.function_name, a.source_ip, a.caller, a.risk_score, a.suppressed, a.message, a.invocation_id].map(csvCell).join(",")));
+  const url = URL.createObjectURL(new Blob([lines.join("\n")], {type: "text/csv"})), a = el("a"); a.href = url; a.download = "ssmf-alerts.csv"; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ---------- plumbing ---------- */
+function go(tab){ S.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  ["overview", "alerts", "feed", "graph"].forEach(t => { $("t-" + t).hidden = t !== tab; }); syncChips(); $("fRule").value = S.rule; $("fFn").value = S.fn; draw(); }
+function draw(){
+  if(!S.stats) return; const s = S.stats, e = s.engine;
+  $("mode").textContent = e.mode; $("ml").textContent = !e.ml_enabled ? "off" : e.ml_ready ? "active" : "learning " + e.ml_warmup_done + "/" + e.ml_warmup_needed;
+  fillSelect($("fRule"), new Set(S.alerts.map(a => a.rule)), S.rule, "All rules"); fillSelect($("fFn"), new Set(s.by_function.map(f => f.function_name)), S.fn, "All functions");
+  $("alertBadge").textContent = String(s.total_alerts);
+  if(S.tab === "overview"){ renderKpis(s); renderTimeline(s); renderDonut(s); renderRules(s); renderFns(s); }
+  else if(S.tab === "alerts") renderAlerts(); else if(S.tab === "feed") renderFeed(); else renderGraph();
+}
+async function tick(){
+  if(!S.paused){
+    try{
+      const get = async u => { const r = await fetch(u); if(!r.ok) throw new Error(r.status); return r.json(); };
+      const [st, al, ev] = await Promise.all([get("/api/v1/stats"), get("/api/v1/alerts?limit=300"), get("/api/v1/events?limit=300")]);
+      if(!S.policy) S.policy = await get("/api/v1/policy");
+      S.stats = st; S.alerts = al; S.events = ev;
+      const ids = new Set(al.map(a => a.alert_id));
+      if(S.seen){ al.filter(a => !S.seen.has(a.alert_id) && RANK[a.severity] >= 3).slice(0, 3).forEach(toast); } S.seen = ids;
+      $("status").className = "pill live"; $("statusTxt").textContent = "live"; draw();
+    }catch(err){ $("status").className = "pill live bad"; $("statusTxt").textContent = "disconnected"; }
+  }
+  S.timer = setTimeout(tick, Number($("rate").value));
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { const k = c.dataset.sev; if(S.sev.has(k)) S.sev.delete(k); else S.sev.add(k); syncChips(); renderAlerts(); }));
+$("fRule").addEventListener("change", e => { S.rule = e.target.value; renderAlerts(); }); $("fFn").addEventListener("change", e => { S.fn = e.target.value; renderAlerts(); });
+$("fQ").addEventListener("input", e => { S.q = e.target.value; renderAlerts(); }); $("csv").addEventListener("click", exportCsv);
+$("flagOnly").addEventListener("change", e => { S.flagOnly = e.target.checked; renderFeed(); });
+$("pause").addEventListener("click", () => { S.paused = !S.paused; $("pause").textContent = S.paused ? "Resume" : "Pause"; $("status").className = "pill live" + (S.paused ? " idle" : ""); $("statusTxt").textContent = S.paused ? "paused" : "live"; });
+$("rate").addEventListener("change", () => { clearTimeout(S.timer); tick(); });
+$("drawer").addEventListener("click", e => { if(e.target.id === "drawer") closeDrawer(); }); document.addEventListener("keydown", e => { if(e.key === "Escape") closeDrawer(); });
+function setTheme(t){ document.documentElement.dataset.theme = t; try{ localStorage.setItem("ssmf-theme", t); }catch(e){} draw(); }
+$("theme").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+try{ const t = localStorage.getItem("ssmf-theme"); if(t) document.documentElement.dataset.theme = t; }catch(e){}
+tick();
+</script>
+</body>
+</html>
